@@ -1,0 +1,4 @@
+ArtMeter.exe
+artmeter.log*
+# widget position and options, written by the app
+config.json
