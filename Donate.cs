@@ -74,8 +74,7 @@ sealed class Donate : Form {
   readonly SolidBrush brush = new SolidBrush(Color.Black);
   readonly Timer copiedTimer = new Timer { Interval = 1600 };
   readonly float k;
-  readonly string intro = "Він безкоштовний. Якщо став тобі в пригоді, можна підтримати автора — " +
-    "переказом на криптогаманець або через один із сервісів нижче.";
+  readonly string intro;
   Rectangle btnClose, introRect;
   Rectangle[] cards, qrBoxes, addrRects, copyBtns, linkBtns;
   string[][] addrLines;
@@ -83,6 +82,9 @@ sealed class Donate : Form {
 
   public Donate(DonateInfo info) {
     this.info = info;
+    string how = info.Crypto.Count == 0 ? "через один із сервісів нижче."
+      : info.Links.Count == 0 ? "переказом на криптогаманець." : "переказом на криптогаманець або через один із сервісів нижче.";
+    intro = "Він безкоштовний. Якщо став тобі в пригоді, можна підтримати автора — " + how;
     FormBorderStyle = FormBorderStyle.None;
     StartPosition = FormStartPosition.Manual;
     BackColor = Theme.Bg;
