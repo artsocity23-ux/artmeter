@@ -5,10 +5,12 @@
 <p align="center">Легкий монітор ресурсів для Windows: CPU, RAM і кожна відеокарта NVIDIA — завантаження, зайнята й вільна відеопам'ять, і які програми все це з'їли.</p>
 
 <p align="center">
-  <img src="docs/widget.png" width="320" alt="Повний вигляд">
+  <img src="docs/demo.gif" width="320" alt="Повний вигляд під час рендера: CPU, RAM і VRAM ростуть, VRAM понад 90% стає червоною">
   &nbsp;&nbsp;
-  <img src="docs/compact.png" width="242" alt="Компактний вигляд" valign="top">
+  <img src="docs/demo-compact.gif" width="252" alt="Компактний вигляд" valign="top">
 </p>
+
+<p align="center"><sub>Повний і компактний вигляд, поки йде рендер. Дані для демо вигадані, показ прискорено вдвічі.</sub></p>
 
 Невеликий віджет поверх усіх вікон. Зроблений для VFX-станції, де важливо бачити, скільки VRAM лишилося до того, як Houdini, Nuke чи рендер упреться в стелю. Один `.exe` на ~90 КБ без залежностей — з інсталятором або portable; сам бере ~12 мс CPU на секунду.
 
@@ -89,6 +91,8 @@ build.cmd
 
 `make-icon.js` (Node.js) перегенеровує `icon.ico` / `icon.png`, якщо захочеш іншу іконку.
 
+`demo\make-demo.cmd` перемальовує GIF і скриншоти в `docs/`: той самий код віджета, але з вигаданими цифрами й назвами програм. Для GIF потрібен Python 3 з Pillow.
+
 Інсталятор збирає [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 
 ```bat
@@ -127,6 +131,7 @@ ArtMeter.exe --dump C:\temp\meter
 | `donate.json` | адреси й посилання для донатів |
 | `build.cmd` | збірка |
 | `installer/ArtMeter.iss` | інсталятор |
+| `demo/` | демо для README з вигаданими даними |
 
 ## Підтримати
 
