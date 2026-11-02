@@ -26,14 +26,15 @@ static class Program {
     }
     bool first;
     using (var single = new Mutex(true, @"Local\ArtMeter.Single", out first))
-    using (var show = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\ArtMeter.Show")) {
+    using (var show = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\ArtMeter.Show"))
+    using (var quit = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\ArtMeter.Quit")) {
       if (!first) {
         show.Set(); // launching again (Start menu, pinned shortcut) brings back the running widget
         return;
       }
       Application.ThreadException += (s, e) => Log.Write("ERROR " + e.Exception);
       AppDomain.CurrentDomain.UnhandledException += (s, e) => Log.Write("FATAL " + e.ExceptionObject);
-      Application.Run(new App(show));
+      Application.Run(new App(show, quit));
     }
   }
 
@@ -87,6 +88,11 @@ static class Program {
         cfg.Compact = true;
         using (var bmp = widget.Snapshot()) bmp.Save(prefix + "-compact.png", ImageFormat.Png);
       }
+      var donate = DonateInfo.Load();
+      if (donate.Any) {
+        using (var form = new Donate(donate))
+        using (var bmp = form.Snapshot()) bmp.Save(prefix + "-donate.png", ImageFormat.Png);
+      }
     }
   }
 }
@@ -97,6 +103,8 @@ sealed class App : ApplicationContext {
 
   readonly Settings cfg = Settings.Load();
   readonly Collector data = new Collector();
+  readonly DonateInfo donateInfo = DonateInfo.Load();
+  Donate donate;
   readonly ContextMenuStrip menu;
   readonly ToolStripMenuItem miShow, miCompact, miTop, miOpacity, miAuto;
   readonly Widget widget;
@@ -106,7 +114,7 @@ sealed class App : ApplicationContext {
   int trayKey = -1;
   string lastError;
 
-  public App(EventWaitHandle showSignal) {
+  public App(EventWaitHandle showSignal, EventWaitHandle quitSignal) {
     data.Init();
     data.Rows = cfg.Rows;
     data.AppsEveryMs = cfg.AppsInterval;
@@ -148,6 +156,7 @@ sealed class App : ApplicationContext {
     menu.Items.AddRange(new ToolStripItem[] {
       miShow, miCompact, miTop, miOpacity, miReset, new ToolStripSeparator(), miTaskmgr, miLog, miAuto, new ToolStripSeparator(), miExit,
     });
+    if (donateInfo.Any) menu.Items.Insert(menu.Items.Count - 1, Item("Підтримати автора ♥", (s, e) => ShowDonate()));
     menu.Opening += (s, e) => {
       miShow.Text = widget.Visible ? "Сховати віджет" : "Показати віджет";
       miCompact.Checked = cfg.Compact;
@@ -180,6 +189,11 @@ sealed class App : ApplicationContext {
     timer.Tick += Tick;
     timer.Start();
     ThreadPool.RegisterWaitForSingleObject(showSignal, (state, timedOut) => widget.BeginInvoke((MethodInvoker)(() => SetVisible(true))), null, -1, false);
+    // The installer sets this to close a running copy before replacing or removing it.
+    ThreadPool.RegisterWaitForSingleObject(quitSignal, (state, timedOut) => widget.BeginInvoke((MethodInvoker)(() => {
+      Log.Write("quit requested");
+      Quit();
+    })), null, -1, true);
     Log.Write("started: " + data.CpuName + ", " + data.Cores.Length + " threads, " + data.Gpus.Count + " NVIDIA GPU(s), driver " + data.Driver);
   }
 
@@ -255,6 +269,15 @@ sealed class App : ApplicationContext {
     }
   }
 
+  void ShowDonate() {
+    if (donate == null) {
+      donate = new Donate(donateInfo);
+      donate.FormClosed += (s, e) => donate = null;
+    }
+    donate.Show();
+    donate.Activate();
+  }
+
   static bool GetAutostart() {
     using (var key = Registry.CurrentUser.OpenSubKey(RunKey)) return key != null && key.GetValue("ArtMeter") != null;
   }
@@ -272,6 +295,7 @@ sealed class App : ApplicationContext {
   }
 
   void Quit() {
+    if (donate != null) donate.Close();
     timer.Stop();
     tray.Visible = false;
     tray.Dispose();

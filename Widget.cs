@@ -453,7 +453,7 @@ sealed class Widget : Form {
     g.FillRectangle(brush, r);
   }
 
-  static GraphicsPath Round(Rectangle r, int radius) {
+  internal static GraphicsPath Round(Rectangle r, int radius) {
     var p = new GraphicsPath();
     int d = Math.Min(radius * 2, Math.Min(r.Width, r.Height));
     if (d < 2) {

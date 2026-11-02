@@ -1,0 +1,66 @@
+# Builds ArtMeter.exe and the installer on a Windows runner.
+#   v* tag          -> both files attached to that release (created if missing)
+#   manual dispatch -> both files uploaded as a workflow artifact
+name: build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $v = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME -replace '^v', '' } else { "0.0.0-dev.$env:GITHUB_RUN_NUMBER" }
+          "value=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Build ArtMeter.exe
+        shell: cmd
+        run: build.cmd
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          (Get-Item $iscc).VersionInfo.ProductVersion
+          & $iscc "/DAppVersion=${{ steps.version.outputs.value }}" installer\ArtMeter.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item ArtMeter.exe dist\
+
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ArtMeter-${{ steps.version.outputs.value }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE) {
+            gh release create $env:TAG --title "ArtMeter $env:VERSION" --generate-notes --verify-tag
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          gh release upload $env:TAG "dist\ArtMeter-Setup-$env:VERSION.exe" dist\ArtMeter.exe --clobber
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
